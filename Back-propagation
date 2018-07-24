@@ -1,0 +1,78 @@
+##python##
+##Author : jiseok yoon##
+import tensorflow as tf
+
+##score predict##
+#training set
+x1_data = [.52, .66, .79, .91, .85, .94] #middle exam mean
+x2_data = [.62, .71, .80, .77, .91, .97] #final exam mean
+x3_data = [.40, .30, .50, .60, .75, .95] #home work mean
+y_data = [.23, .27, .34, .36, .41, .45] #grade mean
+#test set
+x1_test = [.42, .54, .71, .88]
+x2_test = [.36, .39, .90, .94]
+x3_test = [.40, .60, .85, .90]
+
+#data input
+x1 = tf.placeholder(tf.float32)
+x2 = tf.placeholder(tf.float32)
+x3 = tf.placeholder(tf.float32)
+Y = tf.placeholder(tf.float32)
+
+#3 input neuron 3 hidden neuron and 1 output neuron tatal 3layer NN
+w1, b1 = tf.Variable(tf.random_normal([1])), tf.Variable(tf.random_normal([1]))
+w2, b2 = tf.Variable(tf.random_normal([1])), tf.Variable(tf.random_normal([1]))
+w3, b3 = tf.Variable(tf.random_normal([1])), tf.Variable(tf.random_normal([1]))
+w4 = tf.Variable(tf.random_normal([1]))
+w5 = tf.Variable(tf.random_normal([1]))
+w6 = tf.Variable(tf.random_normal([1]))
+b_out = tf.Variable(tf.random_normal([1]))
+
+#for tensorboard 
+w1_his = tf.summary.histogram("w1", w1)
+w2_his = tf.summary.histogram("w2", w2)
+w3_his = tf.summary.histogram("w3", w3)
+w4_his = tf.summary.histogram("w4", w4)
+w5_his = tf.summary.histogram("w5", w5)
+w6_his = tf.summary.histogram("w6", w6)
+
+#hidden layer output, activation function is f(x) = x
+out_h1 = w1 * x1 + b1
+out_h2 = w2 * x2 + b2
+out_h3 = w3 * x3 + b3
+
+#hypothesis, loss, learning rate
+hypothesis = out_h1 * w4 + out_h2 * w5 + out_h3 * w6 + b_out
+cost = tf.reduce_mean(tf.square(hypothesis - Y))
+learning_rate = 0.01
+cost_his = tf.summary.scalar("cost", cost)
+
+#one try back propagation
+update_w6 = w6.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * out_h3)))
+update_w5 = w5.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * out_h2)))
+update_w4 = w4.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * out_h1)))
+update_w3 = w3.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * w6 * x3)))
+update_w2 = w2.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * w5 * x2)))
+update_w1 = w1.assign_sub(tf.fill([1], learning_rate * 2 * tf.reduce_mean((hypothesis - Y) * w4 * x1)))
+
+#make session and init
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+#tensorboard init
+merged_summary = tf.summary.merge_all()
+writer = tf.summary.FileWriter("./log/backpropagation")
+writer.add_graph(sess.graph)
+
+#loop 20000 try
+for step in range(20001):
+    h, c, _w1, _w2, _w3, _w4, _w5, _w6, summary = sess.run([hypothesis, cost, update_w6, update_w5, update_w4, update_w3, update_w2, update_w1, merged_summary],
+                                                           feed_dict={x1: x1_data, x2: x2_data, x3: x3_data, Y: y_data})
+    if step % 500 == 0:
+        writer.add_summary(summary, step)
+        writer.flush()
+        print("step = ", step, "hypothesis = ", h, "cost = ", c)
+        if step == 20000:
+            print("weight w1 ~ w6 = ", _w1, _w2, _w3, _w4, _w5, _w6)
+h_t = sess.run(hypothesis, feed_dict={x1: x1_test, x2: x2_test, x3: x3_test})
+print("test set expected grade = ", h_t)
